@@ -160,6 +160,7 @@ model Lead {
   updatedAt            DateTime   @updatedAt
 
   activities           Activity[] @relation("LeadActivities")
+  tasks                Task[]     @relation("LeadTasks")
 
   @@index([leadOwnerId])
   @@index([status])
@@ -194,6 +195,7 @@ model Contact {
 
   activities        Activity[] @relation("ContactActivities")
   opportunities     Opportunity[] @relation("ContactOpportunities") // Opportunities where this contact is primary
+  tasks             Task[]     @relation("ContactTasks")
 
   @@index([contactOwnerId])
   @@index([accountId])
@@ -230,6 +232,7 @@ model Account {
   contacts            Contact[]     @relation("AccountContacts")
   opportunities       Opportunity[] @relation("AccountOpportunities")
   activities          Activity[]  @relation("AccountActivities")
+  tasks               Task[]      @relation("AccountTasks")
 
   @@index([accountOwnerId])
   @@index([accountName])
@@ -259,6 +262,7 @@ model Opportunity {
   updatedAt         DateTime         @updatedAt
 
   activities        Activity[]       @relation("OpportunityActivities")
+  tasks             Task[]           @relation("OpportunityTasks")
 
   @@index([ownerId])
   @@index([accountId])
@@ -278,13 +282,13 @@ model Task {
   
   // Generic relation for what this task is about (optional)
   relatedLeadId         String? 
-  relatedLead           Lead?    @relation(fields: [relatedLeadId], references: [id], onDelete: Cascade)
+  relatedLead           Lead?    @relation("LeadTasks", fields: [relatedLeadId], references: [id], onDelete: Cascade)
   relatedContactId      String?
-  relatedContact        Contact? @relation(fields: [relatedContactId], references: [id], onDelete: Cascade)
+  relatedContact        Contact? @relation("ContactTasks", fields: [relatedContactId], references: [id], onDelete: Cascade)
   relatedAccountId      String?
-  relatedAccount        Account? @relation(fields: [relatedAccountId], references: [id], onDelete: Cascade)
+  relatedAccount        Account? @relation("AccountTasks", fields: [relatedAccountId], references: [id], onDelete: Cascade)
   relatedOpportunityId  String?
-  relatedOpportunity    Opportunity? @relation(fields: [relatedOpportunityId], references: [id], onDelete: Cascade)
+  relatedOpportunity    Opportunity? @relation("OpportunityTasks", fields: [relatedOpportunityId], references: [id], onDelete: Cascade)
 
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
