@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: crm_db_indian_it
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crmuser} # Allows override from .env file
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crmpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-crmdb}
+    volumes:
+      - crm_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crmuser} -d ${POSTGRES_DB:-crmdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm_network
+
+  app:
+    container_name: crm_app_indian_it
+    # The Dockerfile is expected to be in the ./backend directory
+    # This Dockerfile should handle building both backend and frontend (e.g., copying frontend build into backend's public dir)
+    build:
+      context: .
+      dockerfile: backend/Dockerfile 
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:9000/api} # Example build-time arg for frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-9000}:9000" # Backend listens on 9000 internally
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-crmuser}:${POSTGRES_PASSWORD:-crmpassword}@db:5432/${POSTGRES_DB:-crmdb}?schema=public"
+      PORT: 9000 # Port the backend application inside the container will listen on
+      NODE_ENV: ${NODE_ENV:-production}
+      # Add other backend-specific environment variables here
+      # E.g., JWT_SECRET, API_KEYS etc.
+      # NEXT_PUBLIC_API_BASE_URL: http://localhost:9000/api # For frontend if served by backend
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # For development, you might mount volumes to reflect code changes without rebuilding.
+      # Ensure paths and Dockerfile COPY commands are compatible.
+      # - ./backend:/usr/src/app # Mount backend source (adjust path in Dockerfile if needed)
+      # - ./frontend:/usr/src/app/frontend # Mount frontend source (if building frontend outside backend Docker context)
+      # - /usr/src/app/node_modules # Anonymous volume for backend node_modules
+      # - /usr/src/app/frontend/node_modules # Anonymous volume for frontend node_modules
+      # Production: Code is baked into the image. No volumes needed for code.
+      # If backend serves static files from a volume (e.g. user uploads), mount it here.
+      - ./logs:/usr/src/app/logs # Example for persistent logs
+    networks:
+      - crm_network
+
+volumes:
+  crm_postgres_data:
+    driver: local
+
+networks:
+  crm_network:
+    driver: bridge
+
+# To use this docker-compose.yml:
+# 1. Create a .env file in the root directory with overrides if needed:
+#    POSTGRES_USER=myuser
+#    POSTGRES_PASSWORD=mypassword
+#    POSTGRES_DB=mydb
+#    DB_PORT=5433
+#    APP_PORT=9001
+#    NODE_ENV=development
+#    NEXT_PUBLIC_API_BASE_URL=http://localhost:9001/api
+#
+# 2. Ensure ./backend/Dockerfile exists and is correctly configured to build the backend
+#    and incorporate the frontend build (e.g., copy `frontend/dist` or `frontend/.next/standalone`)
+#
+# 3. Run: docker-compose up --build -d
+#    Access app at http://localhost:<APP_PORT_OR_9000>
+#    Access DB at localhost:<DB_PORT_OR_5432>

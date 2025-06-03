@@ -1,0 +1,340 @@
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMINISTRATOR
+  SALES_MANAGER
+  SALES_REPRESENTATIVE
+}
+
+enum TokenType {
+  ACCESS
+  REFRESH
+  RESET_PASSWORD
+  EMAIL_VERIFICATION
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  COLD_CALL
+  EVENT
+  ADVERTISEMENT
+  PARTNER
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum AccountType {
+  PROSPECT
+  CUSTOMER
+  PARTNER
+  VENDOR
+  RESELLER
+  INFLUENCER
+  OTHER
+}
+
+enum Industry {
+  TECHNOLOGY
+  FINANCE
+  HEALTHCARE
+  MANUFACTURING
+  RETAIL
+  EDUCATION
+  CONSULTING
+  HOSPITALITY
+  REAL_ESTATE
+  OTHER
+}
+
+enum OpportunityStage {
+  PROSPECTING // Initial contact or lead identified
+  QUALIFICATION // Assessing if the lead is a good fit (budget, authority, need, timeline - BANT)
+  NEEDS_ANALYSIS // Understanding detailed customer requirements
+  VALUE_PROPOSITION // Presenting how the product/service meets needs
+  PROPOSAL_PRICE_QUOTE // Sending a formal proposal or quote
+  NEGOTIATION_REVIEW // Discussing terms, pricing, and contract details
+  CLOSED_WON // Deal successfully closed
+  CLOSED_LOST // Deal lost to competitor or other reasons
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DEFERRED
+  CANCELLED
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  LEAD_CREATED
+  CONTACT_CREATED
+  ACCOUNT_CREATED
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_UPDATED // e.g. stage change
+  TASK_CREATED
+  TASK_COMPLETED
+  OTHER
+}
+
+model User {
+  id                   String        @id @default(uuid())
+  email                String        @unique
+  name                 String
+  password             String
+  role                 UserRole      @default(SALES_REPRESENTATIVE)
+  avatarUrl            String?
+  isActive             Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  tokens               Token[]
+  ownedLeads           Lead[]        @relation("LeadOwner")
+  ownedContacts        Contact[]     @relation("ContactOwner")
+  ownedAccounts        Account[]     @relation("AccountOwner")
+  ownedOpportunities   Opportunity[] @relation("OpportunityOwner")
+  assignedTasks        Task[]        @relation("TaskAssignee")
+  loggedActivities     Activity[]    @relation("ActivityLogger")
+}
+
+model Token {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  type        TokenType
+  expires     DateTime
+  blacklisted Boolean   @default(false)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Lead {
+  id                   String     @id @default(uuid())
+  firstName            String
+  lastName             String
+  email                String?    @unique
+  phone                String?
+  company              String?
+  status               LeadStatus @default(NEW)
+  source               LeadSource?
+  estimatedValue       Float?
+  description          String?
+  leadOwnerId          String
+  leadOwner            User       @relation("LeadOwner", fields: [leadOwnerId], references: [id], onDelete: Restrict)
+  
+  // For tracking conversion
+  convertedToContactId String?    @unique
+  convertedToAccountId String?    // Not necessarily unique if multiple leads convert to same account, but contact should be primary link
+  convertedAt          DateTime?
+
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  activities           Activity[] @relation("LeadActivities")
+
+  @@index([leadOwnerId])
+  @@index([status])
+  @@index([email])
+}
+
+model Contact {
+  id                String     @id @default(uuid())
+  firstName         String
+  lastName          String
+  email             String     @unique
+  phone             String?
+  mobilePhone       String?
+  jobTitle          String?
+  department        String?
+  linkedinProfile   String?
+  mailingStreet     String?
+  mailingCity       String?
+  mailingState      String?
+  mailingPostalCode String?
+  mailingCountry    String?
+  description       String?
+  
+  accountId         String?
+  account           Account?   @relation("AccountContacts", fields: [accountId], references: [id], onDelete: SetNull)
+  
+  contactOwnerId    String
+  contactOwner      User       @relation("ContactOwner", fields: [contactOwnerId], references: [id], onDelete: Restrict)
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  activities        Activity[] @relation("ContactActivities")
+  opportunities     Opportunity[] @relation("ContactOpportunities") // Opportunities where this contact is primary
+
+  @@index([contactOwnerId])
+  @@index([accountId])
+  @@index([email])
+}
+
+model Account {
+  id                  String      @id @default(uuid())
+  accountName         String      @unique
+  industry            Industry?
+  type                AccountType?
+  website             String?
+  phone               String?
+  annualRevenue       Float?
+  numberOfEmployees   Int?
+  billingStreet       String?
+  billingCity         String?
+  billingState        String?
+  billingPostalCode   String?
+  billingCountry      String?
+  shippingStreet      String?
+  shippingCity        String?
+  shippingState       String?
+  shippingPostalCode  String?
+  shippingCountry     String?
+  description         String?
+
+  accountOwnerId      String
+  accountOwner        User        @relation("AccountOwner", fields: [accountOwnerId], references: [id], onDelete: Restrict)
+
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  contacts            Contact[]     @relation("AccountContacts")
+  opportunities       Opportunity[] @relation("AccountOpportunities")
+  activities          Activity[]  @relation("AccountActivities")
+
+  @@index([accountOwnerId])
+  @@index([accountName])
+}
+
+model Opportunity {
+  id                String           @id @default(uuid())
+  opportunityName   String
+  stage             OpportunityStage @default(PROSPECTING)
+  amount            Float
+  closeDate         DateTime
+  probability       Float? // Percentage (0-100), often auto-calculated based on stage
+  description       String?
+  nextSteps         String?
+  leadSource        LeadSource?
+  
+  accountId         String
+  account           Account          @relation("AccountOpportunities", fields: [accountId], references: [id], onDelete: Cascade) // If account deleted, opportunity is likely gone
+  
+  primaryContactId  String?          // Optional: main contact for this deal
+  primaryContact    Contact?         @relation("ContactOpportunities", fields: [primaryContactId], references: [id], onDelete: SetNull)
+
+  ownerId           String
+  owner             User             @relation("OpportunityOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  activities        Activity[]       @relation("OpportunityActivities")
+
+  @@index([ownerId])
+  @@index([accountId])
+  @@index([stage])
+}
+
+model Task {
+  id             String        @id @default(uuid())
+  title          String
+  description    String?
+  dueDate        DateTime?
+  priority       TaskPriority  @default(MEDIUM)
+  status         TaskStatus    @default(PENDING)
+  
+  assignedToId   String
+  assignee       User          @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade) // If user deleted, their tasks are gone (or reassign)
+  
+  // Generic relation for what this task is about (optional)
+  relatedLeadId         String? 
+  relatedLead           Lead?    @relation(fields: [relatedLeadId], references: [id], onDelete: Cascade)
+  relatedContactId      String?
+  relatedContact        Contact? @relation(fields: [relatedContactId], references: [id], onDelete: Cascade)
+  relatedAccountId      String?
+  relatedAccount        Account? @relation(fields: [relatedAccountId], references: [id], onDelete: Cascade)
+  relatedOpportunityId  String?
+  relatedOpportunity    Opportunity? @relation(fields: [relatedOpportunityId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  activities     Activity[]    @relation("TaskActivities")
+
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([relatedLeadId])
+  @@index([relatedContactId])
+  @@index([relatedAccountId])
+  @@index([relatedOpportunityId])
+}
+
+model Activity {
+  id           String       @id @default(uuid())
+  type         ActivityType
+  summary      String // Short description of the activity
+  notes        String? // Detailed notes
+  date         DateTime     @default(now()) // When the activity occurred or was logged
+  
+  userId       String // User who performed or logged the activity
+  logger       User         @relation("ActivityLogger", fields: [userId], references: [id], onDelete: Cascade) // If user deleted, their activity logs are gone
+
+  // Polymorphic-like association: an activity can be related to one of these
+  leadId       String?
+  lead         Lead?        @relation("LeadActivities", fields: [leadId], references: [id], onDelete: Cascade)
+  
+  contactId    String?
+  contact      Contact?     @relation("ContactActivities", fields: [contactId], references: [id], onDelete: Cascade)
+  
+  accountId    String?
+  account      Account?     @relation("AccountActivities", fields: [accountId], references: [id], onDelete: Cascade)
+  
+  opportunityId String?
+  opportunity  Opportunity? @relation("OpportunityActivities", fields: [opportunityId], references: [id], onDelete: Cascade)
+  
+  taskId       String?
+  task         Task?        @relation("TaskActivities", fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([contactId])
+  @@index([accountId])
+  @@index([opportunityId])
+  @@index([taskId])
+  @@index([type])
+  @@index([date])
+}

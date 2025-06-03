@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", // Updated to a more recent ECMAScript version
+    "module": "CommonJS",
+    "lib": ["ES2022", "DOM"], // DOM might be useful for some web standard APIs even in Node
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": false, // Typically false for applications, true for libraries
+    "allowSyntheticDefaultImports": true, // Allows default imports from modules with no default export
+
+    // Stricter Checks
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    // Linter-like checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Experimental options if needed (e.g., for decorators with certain ORMs/libraries)
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "src/**/*.ts", 
+    "prisma/**/*.ts" // Include Prisma type definitions or custom scripts
+  ],
+  "exclude": [
+    "node_modules", 
+    "dist", 
+    "**/*.spec.ts", 
+    "**/*.test.ts",
+    "jest.config.ts"
+  ]
+}

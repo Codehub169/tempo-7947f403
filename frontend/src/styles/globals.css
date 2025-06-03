@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-inter bg-crm-secondary text-crm-text-dark antialiased;
+    /* Ensure dark mode text color is handled by Chakra's theme.global or here if needed */
+  }
+
+  /* Apply Poppins to headings by default if not handled by Chakra theme globally */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-poppins font-semibold text-crm-text-dark;
+     /* Ensure dark mode text color is handled by Chakra's theme.global or here if needed */
+  }
+}
+
+/* More sophisticated custom scrollbar styles (Webkit browsers) */
+::-webkit-scrollbar {
+  width: 10px; /* Thicker scrollbar for desktop */
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-700 rounded-md;
+  /* Using Tailwind's dark mode variant */
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-crm-primary rounded-md;
+  border: 2px solid transparent; /* Creates padding around thumb */
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-crm-primary-hover;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme('colors.crm-primary') theme('colors.gray.100'); /* thumb and track */
+}
+
+/* Dark mode for Firefox scrollbar - requires JS or more specific selectors if not inheriting from body */
+/* This is a simplification; full Firefox dark scrollbar might need more work or rely on browser defaults */
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: theme('colors.crm-accent') theme('colors.gray.700');
+  }
+}
+
+/* Glassmorphism effect for specific elements if needed globally */
+/* .glassmorphic {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+} */
+
+/* Neumorphism (use sparingly) */
+/* .neumorphic-pressed {
+  border-radius: 50px;
+  background: #e0e0e0;
+  box-shadow: inset 5px 5px 10px #bebebe,
+              inset -5px -5px 10px #ffffff;
+} */
+
+/* Base input styling for consistency if not fully covered by Chakra + Tailwind plugin */
+/* input, select, textarea {
+  @apply bg-crm-input-bg border-crm-border rounded-md p-2 focus:ring-crm-primary focus:border-crm-primary;
+} */
